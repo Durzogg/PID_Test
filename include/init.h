@@ -1,7 +1,7 @@
 #ifndef _PROS_INIT_H_
 #define _PROS_INIT_H_
 
-#include "api.h"
+#include "main.h"
 
 pros::Controller Master(pros::E_CONTROLLER_MASTER);
 

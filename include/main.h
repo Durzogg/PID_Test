@@ -62,6 +62,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+void PIDMover(int setPoint);
+void PIDTurner(int setPoint, int direction);
+
 void autonomous(void);
 void initialize(void);
 void disabled(void);
@@ -77,5 +80,22 @@ void opcontrol(void);
  */
 //#include <iostream>
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif  // _PROS_MAIN_H_
