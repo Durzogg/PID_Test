@@ -21,7 +21,7 @@ void PIDMover(
 // General Variables
 	int error;
 	int power;
-	int tolerance = 10;
+	int tolerance = 2;
 	bool actionCompleted = false;
 
 // Proportional Variables
@@ -38,9 +38,9 @@ void PIDMover(
 	int prevError;
 
 // Constants -- tuning depends on whether the robot is moving or turning
-	double kP = 1; // customizable
-	double kI = 0.25; // customizable
-	double kD = 0; // customizable
+	double kP = 1.28; // customizable
+	double kI = 0.4; // customizable
+	double kD = 0.1; // customizable
 
 // Checks if the movement is positive or negative
 	bool isPositive = setPoint > 0;
@@ -91,15 +91,20 @@ void PIDMover(
 		// starts the integral at the error, then compounds it with the new current error every loop
 		integral = int (integral + error);
 		// prevents the integral variable from causing the robot to overshoot
-		if ((isPositive && (error <= tolerance)) || (!isPositive && (error >= -tolerance))) {
+		if ((isPositive && (error == 0)) || (!isPositive && (error == 0))) {
 			integral = 0;
 		}
 		// prevents the integral from winding up too much, causing the number to be beyond the control of
         // even kI
 		// if we want to make this better, see Solution #3 for 3.3.2 in the packet
-		if (integral >= integralLimiter) {
-            integral /= 2;
-        }
+		if (((isPositive) && (error >= 100)) || ((!isPositive) && (error <= -100))) {
+			integral = 0;
+			}
+		if (((isPositive) && (integral > 100)) || ((!isPositive) && (integral < -100))) {
+			integral = isPositive
+				? 100
+				: -100;
+			}
 		// kI (integral constant) brings integral down to a reasonable/useful output number
 		integralOut = integral * kI;
 
@@ -119,7 +124,7 @@ void PIDMover(
 
 
 		allWheels.move(power);
-
+		Master.print(0, 0, "%d", power);
 
 
 
@@ -136,8 +141,7 @@ void PIDMover(
 		currentWheelReading = currentMotorReading / gearRatio; // degrees = degrees * multiplier
 		currentDistanceMovedByWheel = currentWheelReading * singleDegree; // centimeters
 
-		if ((((currentDistanceMovedByWheel <= setPoint + tolerance) && (currentDistanceMovedByWheel >= setPoint - tolerance))) || 
-			((power <= 10) && (power >= -10))) {
+		if (((currentDistanceMovedByWheel <= setPoint + tolerance) && (currentDistanceMovedByWheel >= setPoint - tolerance))) {
 				actionCompleted = true;
 				allWheels.brake();
 		}

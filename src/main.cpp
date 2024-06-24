@@ -61,7 +61,9 @@ void competition_initialize() {}
 void autonomous() {
 	allWheels.set_encoder_units(pros::E_MOTOR_ENCODER_DEGREES);
 	// do some PID stuff
-	PIDMover(50);
+	PIDMover(72);
+	pros::delay(1000);
+	PIDMover(-72);
 }
 
 /**
