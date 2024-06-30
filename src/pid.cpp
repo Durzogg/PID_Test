@@ -191,8 +191,8 @@ void PIDTurner(
 
 // Constants -- tuning depends on whether the robot is moving or turning
 	double kP = 0.9;
-	double kI = 0;
-	double kD = 0.3;
+	double kI = 0.2;
+	double kD = 0.1;
 
 // Checks if the movement is positive or negative
 	bool isPositive = setPoint > 0;
@@ -265,9 +265,14 @@ void PIDTurner(
 		// prevents the integral from winding up too much, causing the number to be beyond the control of
         // even kI
 		// if we want to make this better, see Solution #3 for 3.3.2 in the packet
-		if (error >= integralLimiter) {
-            integral = 0;
-        }
+		if (((isPositive) && (error >= 135)) || ((!isPositive) && (error <= -135))) {
+			integral = 0;
+			}
+		if (((isPositive) && (integral > 100)) || ((!isPositive) && (integral < -100))) {
+			integral = isPositive
+				? 100
+				: -100;
+			}
 		// kI (integral constant) brings integral down to a reasonable/useful output number
 		integralOut = integral * kI;
 
@@ -315,8 +320,7 @@ void PIDTurner(
 		// int exampleVar = Inertial.get_heading() - inertialReadingInit;
 		// changeInReading = std::abs(Inertial.get_heading() - inertialReadingInit);
 
-		if ((changeInReading >= distanceToMove) ||
-			((changeInReading <= (distanceToMove + 10)) && (changeInReading >= (distanceToMove - 10)))) {
+		if (((changeInReading <= (distanceToMove + 3)) && (changeInReading >= (distanceToMove - 3)))) {
 				actionCompleted = true;
 				allWheels.brake();
 		}
