@@ -6,8 +6,15 @@ ASMEXTS:=s S
 CXXEXTS:=cpp c++ cc
 
 # probably shouldn't modify these, but you may need them below
+FWSUFFIX :=
+ifeq ($(OS),Windows_NT)
+	FWSUFFIX := "win"
+else
+	FWSUFFIX := "linux"
+endif
+
 ROOT=.
-FWDIR:=$(ROOT)/firmware
+FWDIR:=$(ROOT)/firmware_$(FWSUFFIX)
 BINDIR=$(ROOT)/bin
 SRCDIR=$(ROOT)/src
 INCDIR=$(ROOT)/include
