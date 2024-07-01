@@ -8,9 +8,9 @@ CXXEXTS:=cpp c++ cc
 # probably shouldn't modify these, but you may need them below
 FWSUFFIX :=
 ifeq ($(OS),Windows_NT)
-	FWSUFFIX := "win"
+	FWSUFFIX := win
 else
-	FWSUFFIX := "linux"
+	FWSUFFIX := linux
 endif
 
 ROOT=.
