@@ -124,7 +124,6 @@ void PIDMover(
 
 
 		allWheels.move(power);
-		Master.print(0, 0, "%d", power);
 
 
 
@@ -236,8 +235,6 @@ void PIDTurner(
 	int changeInReading = 0;
 
 	prevError = (int) (distanceToMove - changeInReading);
-
-	Master.print(0, 0, "DTM: %d", distanceToMove);
 
 	int timeout = 0;
 
