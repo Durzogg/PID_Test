@@ -64,6 +64,7 @@ extern "C" {
 #endif
 void PIDMover(int setPoint);
 void PIDTurner(int setPoint, int direction);
+void PIDArc(int setPoint, int maxDist, int direction);
 
 void autonomous(void);
 void initialize(void);

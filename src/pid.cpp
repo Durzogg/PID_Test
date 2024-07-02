@@ -1,4 +1,5 @@
 #include "main.h"
+#include <list>
 
 void PIDMover(
 		int setPoint // how far you want to move in inches
@@ -318,6 +319,181 @@ void PIDTurner(
 		// changeInReading = std::abs(Inertial.get_heading() - inertialReadingInit);
 
 		if (((changeInReading <= (distanceToMove + 3)) && (changeInReading >= (distanceToMove - 3)))) {
+				actionCompleted = true;
+				allWheels.brake();
+		}
+	}
+}
+
+void PIDArc(
+	int setPoint, // the distance to move
+	int maxDist, // the maximum distance of the straight line from your current position and the setPoint to the arc (should be measured at half-point)
+	int direction // 1 for left, 2 for right
+	)
+{
+// Checks if the movement is positive or negative
+	bool isPositive = setPoint > 0;
+
+// controller and motor declarations
+	pros::Controller Master(pros::E_CONTROLLER_MASTER);
+
+	pros::Motor backLeft(16, 1);
+	pros::Motor frontLeft(17, 1);
+
+	pros::Motor backRight(14, 0);
+	pros::Motor frontRight(15, 0);
+
+// sets the inner and outer wheel groups depending on direction - the first two lines are forward declarations to prevent errors, as an actual else produces errors
+	std::vector<pros::Motor> outers;
+	std::vector<pros::Motor> inners;
+	if ((direction == 1 && isPositive) || (direction == 2 && !isPositive)) {
+		direction = 1;
+		outers.push_back(backRight); outers.push_back(frontRight);
+		inners.push_back(backLeft); inners.push_back(frontLeft);
+	} else {
+		direction = 2;
+		outers.push_back(backRight); outers.push_back(frontRight);
+		inners.push_back(backLeft); inners.push_back(frontLeft);
+	}
+
+	pros::Motor_Group outerWheels(outers);
+	pros::Motor_Group innerWheels(inners);
+
+
+	pros::Motor_Group allWheels({backLeft, backRight, frontLeft, frontRight});
+
+// PID CALCULATION VARIABLES
+// General Variables
+	int error;
+	int power;
+	int tolerance = 2;
+	bool actionCompleted = false;
+
+// Proportional Variables
+	int proportionalOut;
+
+// Integral Variables
+	int integral;
+	int integralLimiter = 512; // customizable
+	int integralOut;
+
+// Derivative Variables
+    int derivative;
+    int derivativeOut;
+	int prevError;
+	
+
+// Constants -- tuning depends on whether the robot is moving or turning
+	double kP = 0.64; // customizable
+	double kI = 0.3; // customizable
+	double kD = 0.1; // customizable
+
+
+// PID LOOPING VARIABLES
+	setPoint = setPoint * 2.54; // converts from inches to cm
+
+// Odometry
+	double wheelCircumference = 3.14 * 2.75; // 4 is the wheel diameter in inches
+	double gearRatio = 1;
+	double wheelRevolution = wheelCircumference * 2.54; // in cm
+	long double singleDegree = wheelRevolution / 360;
+
+	backRight.tare_position();
+	backLeft.tare_position();
+	frontRight.tare_position();
+	frontLeft.tare_position();
+
+	double bo;
+	double fo;
+
+	double currentMotorReading = ((bo + fo) / 2);
+	double currentWheelReading = currentMotorReading * gearRatio;
+
+	double currentDistanceMovedByWheel = 0;
+
+// Arc Odometry
+	double halfSetPoint = setPoint / 2;
+	double oRadius = (((halfSetPoint * halfSetPoint) / maxDist) + maxDist) * 2.54;
+	double distBetweenWheels = 12 * 2.54;
+	double mult = ((oRadius - distBetweenWheels) / oRadius);
+
+	error = (int) (setPoint - currentDistanceMovedByWheel);
+	prevError = error;
+
+	int timeout = 0;
+
+	while (actionCompleted != true) {
+	// PID CALCULATION CODE
+		
+	// P: Proportional -- slows down as we reach our target for more accuracy
+
+		// error = goal reading - current reading
+		error = int (setPoint - currentDistanceMovedByWheel);
+		// kP (proportional constant) determines how fast we want to go overall while still keeping accuracy
+		proportionalOut = error * kP;
+
+
+
+
+	// I: Integral -- starts slow and speeds up as time goes on to prevent undershooting
+
+		// starts the integral at the error, then compounds it with the new current error every loop
+		integral = int (integral + error);
+		// prevents the integral variable from causing the robot to overshoot
+		if ((isPositive && (error == 0)) || (!isPositive && (error == 0))) {
+			integral = 0;
+		}
+		// prevents the integral from winding up too much, causing the number to be beyond the control of
+        // even kI
+		// if we want to make this better, see Solution #3 for 3.3.2 in the packet
+		if (((isPositive) && (error >= 100)) || ((!isPositive) && (error <= -100))) {
+			integral = 0;
+			}
+		if (((isPositive) && (integral > 100)) || ((!isPositive) && (integral < -100))) {
+			integral = isPositive
+				? 100
+				: -100;
+			}
+		// kI (integral constant) brings integral down to a reasonable/useful output number
+		integralOut = integral * kI;
+
+
+
+	// D: Derivative -- slows the robot more and more as it goes faster
+
+        // starts the derivative by making it the rate of change from the previous cycle to this one
+        derivative = int (error - prevError);
+		// sets the previous error to the previous error for use in the next cycle
+		prevError = error;
+
+        // kD (derivative constant) prevents derivative from over- or under-scaling
+        derivativeOut = derivative * kD;
+
+		power = proportionalOut + integralOut + derivativeOut;
+
+		outerWheels.move(power);
+		innerWheels.move(power * mult);
+		
+
+
+
+
+
+		pros::delay(15);
+
+		if (direction == 1) {
+			bo = backRight.get_position();
+			fo = frontRight.get_position();
+		} else {
+			bo = backLeft.get_position();
+			fo = frontLeft.get_position();
+		}
+
+		currentMotorReading = ((bo + fo) / 2); // degrees
+		currentWheelReading = currentMotorReading / gearRatio; // degrees = degrees * multiplier
+		currentDistanceMovedByWheel = currentWheelReading * singleDegree; // centimeters
+
+		if (((currentDistanceMovedByWheel <= setPoint + tolerance) && (currentDistanceMovedByWheel >= setPoint - tolerance))) {
 				actionCompleted = true;
 				allWheels.brake();
 		}
