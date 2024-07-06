@@ -365,8 +365,8 @@ void PIDArc(
 		inners.push_back(backLeft); inners.push_back(frontLeft);
 	} else {
 		direction = 2;
-		outers.push_back(backRight); outers.push_back(frontRight);
-		inners.push_back(backLeft); inners.push_back(frontLeft);
+		outers.push_back(backLeft); outers.push_back(frontLeft);
+		inners.push_back(backRight); inners.push_back(frontRight);
 	}
 
 	pros::Motor_Group outerWheels(outers);
@@ -397,8 +397,8 @@ void PIDArc(
 	
 
 // Constants -- tuning depends on whether the robot is moving or turning
-	double kP = 1.28; // customizable
-	double kI = 0.4; // customizable
+	double kP = 3.2; // customizable
+	double kI = 0.3; // customizable
 	double kD = 0.1; // customizable
 
 
@@ -447,10 +447,17 @@ void PIDArc(
 // Arc Turning - turns the robot so that it starts the movement perpendicular to the center of the circle so it can move along the arc accurately
 	double angleOfArcFromStartPosRAD = std::acos(((radius * radius) + (chordLength * chordLength) - (radius * radius)) / (2 * radius * chordLength)); // Law of Cosines to find starting angle of arc - a and c are the radius, and b is the chord (returns radians)
 	int angleOfArcFromStartPosDEG = (int) (angleOfArcFromStartPosRAD * (180 / 3.14)); // converts the radians to degrees
-	int directionForTurn = ((direction == 1 && isPositive) || (direction == 2 && !isPositive))
+	int angleToTurn = 90 - angleOfArcFromStartPosDEG; // as we are already facing toward the destination, this sets our value to turn as the angle between the chord and a line perpendicular to the radius of the circle
+	int directionForTurn = direction == 1
 		? 2
 		: 1;
-	PIDTurner((Inertial.get_heading() + angleOfArcFromStartPosDEG), directionForTurn);
+	int newHeading = directionForTurn == 1
+		? Inertial.get_heading() - angleToTurn // negative left turn
+		: Inertial.get_heading() + angleToTurn; // positive right turn
+
+	// if (newHeading < 0) {newHeading = newHeading + 360;} // makes the new heading the actual new heading if it is a negative
+
+	PIDTurner(newHeading, directionForTurn);
 
 
 
@@ -504,9 +511,10 @@ void PIDArc(
 
 		power = proportionalOut + integralOut + derivativeOut;
 
-		if (power >= 60) {
-			power = 60;
+		if (power > 128) {
+			power = 128;
 		}
+
 
 		outerWheels.move(power);
 		innerWheels.move(power * mult);
