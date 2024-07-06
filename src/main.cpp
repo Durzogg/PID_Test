@@ -69,7 +69,9 @@ void autonomous() {
 	PIDMover(-67);
 	PIDTurner(0, 2);
 	PIDMover(-105); */
-	PIDArc(60, 20, 1);
+
+
+	PIDArc(84, 10, 1);
 }
 
 /**
@@ -102,6 +104,15 @@ void opcontrol() {
 
 		else {
 			allWheels.brake();
+		}
+
+
+
+		if(Master.get_digital(DIGITAL_A)){
+
+			int inertialheading = (int) Inertial.get_heading();
+			Master.print(0, 0, "%d", inertialheading);
+
 		}
 
 	}

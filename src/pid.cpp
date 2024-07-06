@@ -1,5 +1,6 @@
 #include "main.h"
 #include <list>
+#include <math.h>
 
 void PIDMover(
 		int setPoint // how far you want to move in inches
@@ -47,32 +48,38 @@ void PIDMover(
 	bool isPositive = setPoint > 0;
 
 // PID LOOPING VARIABLES
-	setPoint = setPoint * 2.54; // converts from inches to cm
+	setPoint = setPoint * 2.54; // converts from inches to cm, as the function call uses inches for ease of measurement
 
-	double wheelCircumference = 3.14 * 2.75; // 4 is the wheel diameter in inches
-	double gearRatio = 1;
-	double wheelRevolution = wheelCircumference * 2.54; // in cm
-	long double singleDegree = wheelRevolution / 360;
+	double wheelCircumference = 3.14 * 3.25; // 3.25 is the wheel diameter in inches
+	double gearRatio = 3 / 4; // the gear ratio of the robot (gear axle / motor axle)
+	double wheelRevolution = wheelCircumference * 2.54; // wheel circumference in cm
+						// this is equivalent to how far the robot moves in one 360-degree rotation of its wheels
+	long double singleDegree = wheelRevolution / 360; // the distance that the robot moves in one degree of rotation of its wheels
 
+	// resets the rotation of all motors before the movement so the movement can be calculated from zero to the destination
 	backRight.tare_position();
 	backLeft.tare_position();
 	frontRight.tare_position();
 	frontLeft.tare_position();
 
-	double br;
-	double bl;
-	double fr;
-	double fl;
+	// used to measure the rotational sensor values of all the motors (this comes in degrees)
+	double br = backRight.get_position();
+	double bl = backLeft.get_position();
+	double fr = frontRight.get_position();
+	double fl = frontLeft.get_position();
 
-	double currentMotorReading = ((br + bl + fr + fl) / 4);
-	double currentWheelReading = currentMotorReading * gearRatio;
+	double currentMotorReading = ((br + bl + fr + fl) / 4); // measures the average rotation of all motors to determine the movement of the entire robot
+	double currentWheelReading = currentMotorReading * gearRatio; // measures the current reading (in degrees) of the wheel by multiplying it by the gear ratio
 
-	double currentDistanceMovedByWheel = 0;
+	// measures the current distance moved by the robot by multiplying the number of degrees that it has moved 
+	// by the number of centimeters moved in a single degree of movement
+	double currentDistanceMovedByWheel = currentWheelReading * singleDegree; 
 
+	// these initialize variables that are used to measure values from previous cycles
 	error = (int) (setPoint - currentDistanceMovedByWheel);
 	prevError = error;
 
-	int timeout = 0;
+	 
 
 	while (actionCompleted != true) {
 	// PID CALCULATION CODE
@@ -115,7 +122,7 @@ void PIDMover(
 
         // starts the derivative by making it the rate of change from the previous cycle to this one
         derivative = int (error - prevError);
-		// sets the previous error to the previous error for use in the next cycle
+		// sets the previous error to the current error for use in the next cycle
 		prevError = error;
 
         // kD (derivative constant) prevents derivative from over- or under-scaling
@@ -124,23 +131,27 @@ void PIDMover(
 		power = proportionalOut + integralOut + derivativeOut;
 
 
+		// moves the wheels at the desired power, ending the cycle
 		allWheels.move(power);
 
 
 
 
-
+		// fifteen millisecond delay between cycles
 		pros::delay(15);
 
+		// finds the degrees of measurement of the motors
 		br = backRight.get_position();
 		bl = backLeft.get_position();
 		fr = frontRight.get_position();
 		fl = frontLeft.get_position();
 
+		// reassigns the "distance moved" variables for the next cycle after the delay
 		currentMotorReading = ((br + bl + fr + fl) / 4); // degrees
-		currentWheelReading = currentMotorReading / gearRatio; // degrees = degrees * multiplier
+		currentWheelReading = currentMotorReading / gearRatio; // degrees = degrees * gear ratio multiplier
 		currentDistanceMovedByWheel = currentWheelReading * singleDegree; // centimeters
 
+		// checks to see if the robot has completed the movement by checking several conditions, and ends the movement if needed
 		if (((currentDistanceMovedByWheel <= setPoint + tolerance) && (currentDistanceMovedByWheel >= setPoint - tolerance))) {
 				actionCompleted = true;
 				allWheels.brake();
@@ -149,7 +160,7 @@ void PIDMover(
 }
 
 void PIDTurner(
-		int setPoint, // how far you want to move in inches
+		int setPoint, // the goal inertial heading in degrees
 		int direction // 1 for left and 2 for right
 		)
 {
@@ -237,7 +248,7 @@ void PIDTurner(
 
 	prevError = (int) (distanceToMove - changeInReading);
 
-	int timeout = 0;
+	 
 
 	while (!actionCompleted) {
 	// PID CALCULATION CODE
@@ -326,13 +337,13 @@ void PIDTurner(
 }
 
 void PIDArc(
-	int setPoint, // the distance to move
+	int chordLength, // the distance between the robot's starting position and its destination position
 	int maxDist, // the maximum distance of the straight line from your current position and the setPoint to the arc (should be measured at half-point)
 	int direction // 1 for left, 2 for right
 	)
 {
 // Checks if the movement is positive or negative
-	bool isPositive = setPoint > 0;
+	bool isPositive = chordLength > 0;
 
 // controller and motor declarations
 	pros::Controller Master(pros::E_CONTROLLER_MASTER);
@@ -342,6 +353,8 @@ void PIDArc(
 
 	pros::Motor backRight(14, 0);
 	pros::Motor frontRight(15, 0);
+
+	pros::IMU Inertial(20);
 
 // sets the inner and outer wheel groups depending on direction - the first two lines are forward declarations to prevent errors, as an actual else produces errors
 	std::vector<pros::Motor> outers;
@@ -366,7 +379,7 @@ void PIDArc(
 // General Variables
 	int error;
 	int power;
-	int tolerance = 2;
+	int tolerance = 1;
 	bool actionCompleted = false;
 
 // Proportional Variables
@@ -384,13 +397,15 @@ void PIDArc(
 	
 
 // Constants -- tuning depends on whether the robot is moving or turning
-	double kP = 0.64; // customizable
-	double kI = 0.3; // customizable
+	double kP = 1.28; // customizable
+	double kI = 0.4; // customizable
 	double kD = 0.1; // customizable
 
 
 // PID LOOPING VARIABLES
-	setPoint = setPoint * 2.54; // converts from inches to cm
+	chordLength = chordLength * 2.54; // converts from inches to cm
+	maxDist = maxDist * 2.54;
+
 
 // Odometry
 	double wheelCircumference = 3.14 * 2.75; // 4 is the wheel diameter in inches
@@ -411,16 +426,34 @@ void PIDArc(
 
 	double currentDistanceMovedByWheel = 0;
 
-// Arc Odometry
-	double halfSetPoint = setPoint / 2;
-	double oRadius = (((halfSetPoint * halfSetPoint) / maxDist) + maxDist) * 2.54;
-	double distBetweenWheels = 12 * 2.54;
-	double mult = ((oRadius - distBetweenWheels) / oRadius);
-
-	error = (int) (setPoint - currentDistanceMovedByWheel);
+	error = (int) (chordLength - currentDistanceMovedByWheel);
 	prevError = error;
 
-	int timeout = 0;
+// Arc Measurement
+	double halfSetPoint = chordLength / 2; // divides the chord/setPoint into two halves, one on each side of the bisector maxDist
+	double diameterMinusMaxDist = (halfSetPoint * halfSetPoint) / maxDist; // uses the Intersecting Chords Theorem to find the diameter of the circle (excluding maxDist)
+	double diameter = diameterMinusMaxDist + maxDist; // adds maxDist to the previous variable to find the diameter of the circle
+	double radius = diameter / 2; // basic circle math - the radius is half of the diameter
+	double centralAngleOfArc = std::acos(((radius * radius) + (radius * radius) - (chordLength * chordLength)) / (2 * radius * radius)); // Law of Cosines to find central angle - a and b are the radius, and c is the chord (returns radians)
+	double arcLength = centralAngleOfArc * radius; // arc length formula (angle in radians * radius)
+	double setPoint = arcLength; // sets the setPoint to the length of the arc instead of the length of the chord, as it will actually be moving that far
+
+
+// Arc Odometry
+	double oRadius = (((halfSetPoint * halfSetPoint) / maxDist) + maxDist) / 2;
+	double distBetweenWheels = 10 * 2.54;
+	double mult = ((oRadius - distBetweenWheels) / oRadius);
+
+// Arc Turning - turns the robot so that it starts the movement perpendicular to the center of the circle so it can move along the arc accurately
+	double angleOfArcFromStartPosRAD = std::acos(((radius * radius) + (chordLength * chordLength) - (radius * radius)) / (2 * radius * chordLength)); // Law of Cosines to find starting angle of arc - a and c are the radius, and b is the chord (returns radians)
+	int angleOfArcFromStartPosDEG = (int) (angleOfArcFromStartPosRAD * (180 / 3.14)); // converts the radians to degrees
+	int directionForTurn = ((direction == 1 && isPositive) || (direction == 2 && !isPositive))
+		? 2
+		: 1;
+	PIDTurner((Inertial.get_heading() + angleOfArcFromStartPosDEG), directionForTurn);
+
+
+
 
 	while (actionCompleted != true) {
 	// PID CALCULATION CODE
@@ -470,6 +503,10 @@ void PIDArc(
         derivativeOut = derivative * kD;
 
 		power = proportionalOut + integralOut + derivativeOut;
+
+		if (power >= 60) {
+			power = 60;
+		}
 
 		outerWheels.move(power);
 		innerWheels.move(power * mult);
