@@ -430,6 +430,7 @@ void PIDArc(
 	prevError = error;
 
 // Arc Measurement
+	if (!isPositive) {chordLength = -chordLength;}
 	double halfSetPoint = chordLength / 2; // divides the chord/setPoint into two halves, one on each side of the bisector maxDist
 	double diameterMinusMaxDist = (halfSetPoint * halfSetPoint) / maxDist; // uses the Intersecting Chords Theorem to find the diameter of the circle (excluding maxDist)
 	double diameter = diameterMinusMaxDist + maxDist; // adds maxDist to the previous variable to find the diameter of the circle
@@ -459,7 +460,7 @@ void PIDArc(
 
 	PIDTurner(newHeading, directionForTurn);
 
-
+	if (!isPositive) {setPoint = -setPoint;}
 
 
 	while (actionCompleted != true) {
