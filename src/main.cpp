@@ -71,10 +71,7 @@ void autonomous() {
 	PIDMover(-105); */
 
 
-	PIDArc(28, 3, 2);
-	PIDArc(28, 3, 1);
-	PIDArc(28, 3, 2);
-	PIDArc(28, 3, 1);
+	PIDMover(10);
 }
 
 /**
