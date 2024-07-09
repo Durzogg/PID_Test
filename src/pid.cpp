@@ -515,6 +515,9 @@ void PIDArc(
 		if (power > 128) {
 			power = 128;
 		}
+		if (power < -128) {
+			power = -128;
+		}
 
 
 		outerWheels.move(power);
